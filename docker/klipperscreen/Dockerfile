@@ -1,6 +1,6 @@
 FROM python:3.11-bookworm as build
 
-ARG REPO=https://github.com/KlipperScreen/KlipperScreen
+ARG REPO=https://github.com/LynxCrew/KlipperScreen
 ARG VERSION=master
 
 RUN apt update \
