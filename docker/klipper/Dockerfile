@@ -2,7 +2,7 @@
 ##
 FROM python:3.11-bookworm as build
 
-ARG REPO=https://github.com/Klipper3d/klipper
+ARG REPO=https://github.com/LynxCrew/klipper
 ARG VERSION=master
 
 WORKDIR /opt
