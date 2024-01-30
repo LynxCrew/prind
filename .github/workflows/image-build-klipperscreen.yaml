@@ -1,8 +1,8 @@
 name: 'Image: KlipperScreen'
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 2 * * *'
+#  schedule:
+#    - cron: '0 2 * * *'
 jobs:
   build:
     uses: ./.github/workflows/template-image-build-workflow.yaml
