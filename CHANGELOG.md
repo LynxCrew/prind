@@ -7,16 +7,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 <!--
 ## [Unreleased]
 ### Added
+### Fixed
+### Changed
+### Removed
+
+**Full Changelog**: https://github.com/mkuf/prind/compare/vX.X.X...vX.X.X
+-->
+
+## [v1.11.0] - 2024-02-23
+### Changed
+- images: all images will now tagged with the [git description](https://git-scm.com/docs/git-describe#_examples) of the upstream repository instead of a shortened SHA in an attempt to make image versions easier to understand (numbers always go up :rocket:) via #114 and #111
+- docs: reflect new tagging scheme
+
+**Full Changelog**: https://github.com/mkuf/prind/compare/v1.10.0...v1.11.0
+
+## [v1.10.0] - 2024-02-08
+### Added
 - docs: add notes about CANBUS
+- custom: add monitoring example
+- ci: add yamllint action via #110 by @hz61p1
 ### Fixed
 - docs: fix volume paths in moonraker examples #102
+- docs: update links to status badges
 ### Changed
 - docker: pin base images to python:3.11-(slim-)bookworm
 - extra: simplify moonraker-timelapse setup
 - ci: restructure image build workflows
 - ci: add image docs workflow to update dockerhub descriptions automatically
-### Removed
--->
+- docs: add note about image origin
+
+**Full Changelog**: https://github.com/mkuf/prind/compare/v1.9.1...v1.10.0
 
 ## [v1.9.1] - 2023-09-23
 ### Fixed
