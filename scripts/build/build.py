@@ -9,6 +9,7 @@
 import os
 import re
 import git
+import sys
 import getpass
 import logging
 import argparse
@@ -29,6 +30,7 @@ parser.add_argument("--platform",action="append",default=["linux/amd64"],help="P
 parser.add_argument("--push",action="store_true",default=False,help="Push image to registry [default: False]")
 parser.add_argument("--dry-run",action="store_true",default=False,help="Do not actually build images [default: False]")
 parser.add_argument("--force",action="store_true",default=False,help="Build images even though they exist in the registry [default: False]")
+parser.add_argument("--version",help="Which upstream Ref to build. Will overwrite automatic Version extraction from upstream")
 args = parser.parse_args()
 
 #---
@@ -49,6 +51,10 @@ build = {
   "upstream": None,
   "targets": [],
   "versions": {},
+  "results": {
+    "success": [],
+    "failure": []
+  },
   "labels": {
     "org.prind.version": os.environ.get("GITHUB_SHA",(git.Repo(search_parent_directories=True)).head.object.hexsha),
     "org.prind.image.created": datetime.now(timezone.utc).astimezone().isoformat(),
@@ -80,25 +86,31 @@ logger.info("Found upstream repository: " + build["upstream"])
 logger.info("Found docker targets: " + str(build["targets"]))
 
 #---
-# extract info from upstream
-logger.info("Cloning Upstream repository")
-tmp = tempfile.TemporaryDirectory()
-upstream_repo = git.Repo.clone_from(build["upstream"], tmp.name)
+# populate version dict
+if args.version:
+  # version from args
+  logger.warning("Version '" + args.version + "' specified, skipping upstream lookup")
+  build["versions"][args.version] = { "latest": True }
+else:
+  # extract info from upstream
+  logger.info("Cloning Upstream repository")
+  tmp = tempfile.TemporaryDirectory()
+  upstream_repo = git.Repo.clone_from(build["upstream"], tmp.name)
 
-logger.info("Generating Versions from Upstream repository")
-## latest
-latest_version = upstream_repo.git.describe("--tags")
-build["versions"][latest_version] = { "latest": True }
+  logger.info("Generating Versions from Upstream repository")
+  ## latest
+  latest_version = upstream_repo.git.describe("--tags")
+  build["versions"][latest_version] = { "latest": True }
 
-## tags
-upstream_repo_sorted_tags = upstream_repo.git.tag("-l", "--sort=v:refname").split('\n')
-for i in range(1,args.backfill+1):
-  tag = upstream_repo_sorted_tags[-abs(i)]
-  if tag not in build["versions"].keys():
-    build["versions"][tag] = { "latest": False }
+  ## tags
+  upstream_repo_sorted_tags = upstream_repo.git.tag("-l", "--sort=v:refname").split('\n')
+  for i in range(1,args.backfill+1):
+    tag = upstream_repo_sorted_tags[-abs(i)]
+    if tag not in build["versions"].keys():
+      build["versions"][tag] = { "latest": False }
 
-tmp.cleanup()
-logger.info("Found versions: " + str(build["versions"]))
+  tmp.cleanup()
+  logger.info("Found versions: " + str(build["versions"]))
 
 #---
 # Build all targets for all versions
@@ -124,24 +136,35 @@ for version in build["versions"].keys():
       if args.dry_run:
         logger.debug("[dry-run] Would build " + tags[0])
       else:
-        # Build if image does not exist
-        logger.info("Building " + tags[0])
-        stream = (
-          docker.buildx.build(
-            # Build specific
-            context_path = context,
-            build_args = {"VERSION": version},
-            platforms = args.platform,
-            target = target,
-            push = args.push,
-            tags = tags,
-            labels = {
-              **build["labels"],
-              "org.prind.image.version": version
-            },
-            stream_logs = True
+        try:
+          # Build if image does not exist
+          logger.info("Building " + tags[0])
+          stream = (
+            docker.buildx.build(
+              # Build specific
+              context_path = context,
+              build_args = {"VERSION": version},
+              platforms = args.platform,
+              target = target,
+              push = args.push,
+              tags = tags,
+              labels = {
+                **build["labels"],
+                "org.prind.image.version": version
+              },
+              stream_logs = True
+            )
           )
-        )
 
-        for line in stream:
-          logger.info("BUILD: " + line.strip())
+          for line in stream:
+            logger.info("BUILD: " + line.strip())
+
+          logger.info("Successfully built " + tags[0])
+          build["results"]["success"].append(tags[0])
+        except:
+          logger.error("Failed to build " + tags[0])
+          build["results"]["failure"].append(tags[0])
+
+logger.info("Build results: " + str(build["results"]))
+if len(build["results"]["failure"]) > 0:
+  sys.exit(1)
